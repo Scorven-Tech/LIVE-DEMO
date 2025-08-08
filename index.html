@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scorven | Autonomous Crowd Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='alert.js') }}"></script>
+</head>
+<body>
+    <div class="main-container">
+        <h1 class="neon">Scorven</h1>
+        <h2 class="sub-heading">Autonomous AI for Crowd Monitoring</h2>
+
+        <div class="button-panel">
+            <a href="/start" class="btn start">Start Live Detection</a>
+            <a href="/stop" class="btn stop">Stop Detection</a>
+        </div>
+
+        <div class="video-container">
+            <img src="{{ url_for('video_feed') }}" alt="Live Video Feed">
+        </div>
+
+        <form action="/upload" method="post" enctype="multipart/form-data" class="upload-box">
+            <label for="file-upload" class="custom-file-upload">Upload Image/Video</label>
+            <input id="file-upload" type="file" name="file" accept="image/*,video/*" required>
+            <button type="submit" class="btn upload">Detect</button>
+        </form>
+
+        {% if upload_result %}
+        <div class="result-box">
+            <h3 class="result-text">Detection Complete - People: {{ count }}</h3>
+            <img src="{{ url_for('send_output', filename=upload_result) }}" class="result-img">
+            <script>showAlert({{ count }});
+                
+            </script>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
