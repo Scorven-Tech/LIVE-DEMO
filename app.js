@@ -11,9 +11,12 @@ const ctx = canvas.getContext('2d');
 let session;
 let isDetecting = false;
 let animationFrameId;
+let lastAnnouncedCount = -1;
 
+// Class names for the MobileNet-SSD model
 const classNames = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"];
 
+// --- 1. Main Function: Load the Model ---
 async function main() {
     try {
         session = await ort.InferenceSession.create("./mobilenet_ssd.onnx");
@@ -26,13 +29,28 @@ async function main() {
     }
 }
 
+// --- 2. Event Listeners ---
 startBtn.addEventListener('click', startDetection);
 stopBtn.addEventListener('click', stopDetection);
 fileInput.addEventListener('change', detectFromFile);
 
+// --- 3. ALITA Voice Alert Function (Replaces pyttsx3) ---
+function speak(text) {
+    // Stop any previous speech to prevent overlap
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US'; // Set language
+    utterance.rate = 1.0;     // Set speed
+    
+    // Use the browser's speech API
+    window.speechSynthesis.speak(utterance);
+}
+
+// --- 4. Webcam and Live Detection Logic ---
 async function startDetection() {
     if (!session) {
-        alert("Model is not loaded yet. Please wait or check the console for errors.");
+        alert("Model is not loaded yet. Please wait.");
         return;
     }
     try {
@@ -41,6 +59,7 @@ async function startDetection() {
         video.style.display = 'block';
         canvas.style.display = 'none';
         isDetecting = true;
+        lastAnnouncedCount = -1; // Reset counter on start
         detect();
     } catch (err) {
         console.error("Error accessing webcam:", err);
@@ -64,24 +83,17 @@ async function detect() {
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const { boxes, scores, indices, personCount } = await runInference(video);
-    drawDetections(video, boxes, scores, indices);
+    const { boxes, personCount } = await runInference(video);
+    drawDetections(video, boxes, personCount);
 
-    if (personCount > 0) {
-        resultBox.style.display = 'block';
-        resultText.innerText = `Detection Complete - People: ${personCount}`;
-        showAlert(personCount);
-        console.log(`Detected ${personCount} people at ${new Date().toLocaleTimeString()}`);
-    } else {
-        resultBox.style.display = 'none';
-    }
-
+    // Continue the loop
     animationFrameId = requestAnimationFrame(detect);
 }
 
+// --- 5. File-based Detection Logic ---
 function detectFromFile(event) {
     if (!session) {
-        alert("Model is not loaded yet. Please wait or check the console for errors.");
+        alert("Model is not loaded yet. Please wait.");
         return;
     }
     const file = event.target.files[0];
@@ -92,33 +104,29 @@ function detectFromFile(event) {
     image.src = imageUrl;
 
     image.onload = async () => {
-        const { boxes, scores, indices, personCount } = await runInference(image);
-        drawDetections(image, boxes, scores, indices);
-        resultBox.style.display = 'block';
-        resultText.innerText = `Detection Complete - People: ${personCount}`;
-        showAlert(personCount);
-        console.log(`Detected ${personCount} people in the uploaded image.`);
+        const { boxes, personCount } = await runInference(image);
+        drawDetections(image, boxes, personCount);
     };
 }
 
+// --- 6. Core Inference and Processing Function ---
 async function runInference(source) {
     const inputTensor = preprocess(source);
-    
-    // ✅ FIX #1: Using the correct input name "input"
-    const feeds = { "input": inputTensor }; 
-    
+    const feeds = { "input": inputTensor };
     const results = await session.run(feeds);
-    const outputData = results.detection_out.data;
 
-    const { boxes, scores, indices, personCount } = postprocess(outputData, source.width, source.height);
-    return { boxes, scores, indices, personCount };
+    // ✅ FIX: The output name is often just 'output' or 'detection_out'. 
+    // We get the first output tensor from the results object directly.
+    const outputTensor = results[Object.keys(results)[0]];
+    const outputData = outputTensor.data;
+
+    const { boxes, personCount } = postprocess(outputData, source.width, source.height);
+    return { boxes, personCount };
 }
 
 function preprocess(source) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    
-    // ✅ FIX #2: Using the correct model input size: 224x224
     const modelWidth = 224;
     const modelHeight = 224;
     
@@ -139,8 +147,6 @@ function preprocess(source) {
 
 function postprocess(outputData, originalWidth, originalHeight) {
     const boxes = [];
-    const scores = [];
-    const indices = [];
     let personCount = 0;
     
     for (let i = 0; i < outputData.length; i += 7) {
@@ -155,17 +161,17 @@ function postprocess(outputData, originalWidth, originalHeight) {
             const ymin = outputData[i + 4] * originalHeight;
             const xmax = outputData[i + 5] * originalWidth;
             const ymax = outputData[i + 6] * originalHeight;
-
-            boxes.push([xmin, ymin, xmax - xmin, ymax - ymin]);
-            scores.push(score);
-            indices.push(labelIndex);
+            
+            const scoreText = `${Math.round(score * 100)}%`;
+            boxes.push({ box: [xmin, ymin, xmax - xmin, ymax - ymin], label: 'person', score: scoreText });
             personCount++;
         }
     }
-    return { boxes, scores, indices, personCount };
+    return { boxes, personCount };
 }
 
-function drawDetections(source, boxes, scores, indices) {
+// --- 7. Drawing and Counting Function ---
+function drawDetections(source, boxes, personCount) {
     canvas.style.display = 'block';
     video.style.display = 'none';
     canvas.width = source.width || source.videoWidth;
@@ -174,20 +180,36 @@ function drawDetections(source, boxes, scores, indices) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
     
-    for (let i = 0; i < boxes.length; i++) {
-        const box = boxes[i];
-        const score = scores[i];
-        const label = classNames[indices[i]];
-
+    // Draw each box
+    boxes.forEach(item => {
+        const box = item.box;
         ctx.strokeStyle = '#00FF00';
         ctx.lineWidth = 3;
         ctx.strokeRect(box[0], box[1], box[2], box[3]);
 
         ctx.fillStyle = '#00FF00';
         ctx.font = '18px Orbitron';
-        const text = `${label} (${Math.round(score * 100)}%)`;
+        const text = `${item.label} (${item.score})`;
         ctx.fillText(text, box[0], box[1] > 20 ? box[1] - 5 : 20);
+    });
+
+    // Update the count and call the alert functions
+    if (personCount > 0) {
+        resultBox.style.display = 'block';
+        resultText.innerText = `Detection Complete - People: ${personCount}`;
+        
+        // This replaces the logic from your Flask app
+        if (personCount !== lastAnnouncedCount) {
+            console.log(`Detected ${personCount} people.`); // Replaces detect_log.txt
+            showAlert(personCount); // From your alert.js
+            speak(`${personCount} people detected`); // ALITA voice alert
+            lastAnnouncedCount = personCount;
+        }
+    } else {
+        resultBox.style.display = 'none';
+        lastAnnouncedCount = 0;
     }
 }
 
+// --- Run the main function when the page loads ---
 main();
