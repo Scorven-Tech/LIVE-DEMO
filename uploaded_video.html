@@ -1,0 +1,20 @@
+<!-- templates/uploaded_video.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Uploaded Video Live Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div class="main-container">
+        <h1 class="neon">Uploaded Video Live Detection</h1>
+        <div class="video-container">
+            <img src="{{ url_for('uploaded_video_stream') }}" alt="Uploaded Video Stream" style="max-width: 80%; border-radius: 15px;" />
+        </div>
+        <div style="margin-top: 20px;">
+            <a href="{{ url_for('index') }}" class="btn">Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>
