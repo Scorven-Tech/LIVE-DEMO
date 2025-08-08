@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
+
+body {
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    background: radial-gradient(ellipse at center, #0f2027, #203a43, #2c5364);
+    color: #00fff7;
+    text-align: center;
+    overflow-x: hidden;
+}
+
+.main-container {
+    padding: 30px;
+}
+
+.neon {
+    font-size: 3em;
+    text-shadow: 0 0 5px #0ff, 0 0 10px #0ff, 0 0 15px #00f0ff;
+    margin-bottom: 10px;
+}
+
+.sub-heading {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+    color: #b2ffff;
+}
+
+.button-panel {
+    margin: 20px 0;
+}
+
+.btn {
+    padding: 12px 25px;
+    margin: 10px;
+    font-size: 1em;
+    color: #00fff7;
+    background-color: transparent;
+    border: 2px solid #00fff7;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+.btn:hover {
+    background-color: #00fff7;
+    color: #000;
+    cursor: pointer;
+}
+
+.video-container img {
+    margin-top: 20px;
+    width: 80%;
+    max-width: 720px;
+    border: 4px solid #00fff7;
+    border-radius: 15px;
+    box-shadow: 0 0 25px #00fff7;
+}
+
+.upload-box {
+    margin-top: 40px;
+}
+
+.custom-file-upload {
+    display: inline-block;
+    padding: 10px 20px;
+    border: 2px dashed #00fff7;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+#file-upload {
+    display: none;
+}
+
+.result-box {
+    margin-top: 30px;
+    color: #ff8080;
+}
+
+.result-img {
+    margin-top: 10px;
+    width: 60%;
+    max-width: 640px;
+    border: 3px solid #ff0000;
+    border-radius: 10px;
+    box-shadow: 0 0 20px #ff0000;
+}
