@@ -114,7 +114,8 @@ async function runInference(source) {
     const inputTensor = preprocess(source);
     
     // The new API requires an object mapping input names to tensors
-    const feeds = { "image": inputTensor }; // The input name 'image' might need to be adjusted based on the model
+    // Replace "image" with the correct name from Netron
+    const feeds = { "input": inputTensor }; // The input name 'image' might need to be adjusted based on the model
     
     // Run inference
     const results = await session.run(feeds);
