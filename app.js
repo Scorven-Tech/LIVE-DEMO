@@ -12,14 +12,10 @@ let session;
 let isDetecting = false;
 let animationFrameId;
 
-// Class names for the MobileNet-SSD model
 const classNames = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"];
 
-// --- 1. Main Function: Load the Model (UPDATED FOR ONNXRUNTIME-WEB) ---
 async function main() {
     try {
-        // Use ort.InferenceSession.create() instead of new onnx.Inference()
-        // The global 'ort' object comes from the new script tag
         session = await ort.InferenceSession.create("./mobilenet_ssd.onnx");
         console.log("Model loaded successfully!");
         startBtn.disabled = false;
@@ -30,14 +26,11 @@ async function main() {
     }
 }
 
-// --- 2. Event Listeners for Buttons and File Input ---
 startBtn.addEventListener('click', startDetection);
 stopBtn.addEventListener('click', stopDetection);
 fileInput.addEventListener('change', detectFromFile);
 
-// --- 3. Webcam and Live Detection Logic ---
 async function startDetection() {
-    // Check if the model loaded successfully before starting
     if (!session) {
         alert("Model is not loaded yet. Please wait or check the console for errors.");
         return;
@@ -86,7 +79,6 @@ async function detect() {
     animationFrameId = requestAnimationFrame(detect);
 }
 
-// --- 4. File-based Detection Logic ---
 function detectFromFile(event) {
     if (!session) {
         alert("Model is not loaded yet. Please wait or check the console for errors.");
@@ -109,18 +101,13 @@ function detectFromFile(event) {
     };
 }
 
-// --- 5. Core Inference and Processing Function (UPDATED FOR ONNXRUNTIME-WEB) ---
 async function runInference(source) {
     const inputTensor = preprocess(source);
     
-    // The new API requires an object mapping input names to tensors
-    // Replace "image" with the correct name from Netron
-    const feeds = { "input": inputTensor }; // The input name 'image' might need to be adjusted based on the model
+    // ✅ FIX #1: Using the correct input name "input"
+    const feeds = { "input": inputTensor }; 
     
-    // Run inference
     const results = await session.run(feeds);
-    
-    // The output tensor is in results.detection_out
     const outputData = results.detection_out.data;
 
     const { boxes, scores, indices, personCount } = postprocess(outputData, source.width, source.height);
@@ -130,20 +117,24 @@ async function runInference(source) {
 function preprocess(source) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    canvas.width = 300;
-    canvas.height = 300;
-    context.drawImage(source, 0, 0, 300, 300);
-    const imageData = context.getImageData(0, 0, 300, 300);
     
-    const data = new Float32Array(300 * 300 * 3);
-    for (let i = 0; i < 300 * 300; i++) {
+    // ✅ FIX #2: Using the correct model input size: 224x224
+    const modelWidth = 224;
+    const modelHeight = 224;
+    
+    canvas.width = modelWidth;
+    canvas.height = modelHeight;
+    context.drawImage(source, 0, 0, modelWidth, modelHeight);
+    const imageData = context.getImageData(0, 0, modelWidth, modelHeight);
+    
+    const data = new Float32Array(modelWidth * modelHeight * 3);
+    for (let i = 0; i < modelWidth * modelHeight; i++) {
         data[i] = imageData.data[i * 4] / 255;
-        data[i + 300 * 300] = imageData.data[i * 4 + 1] / 255;
-        data[i + 300 * 300 * 2] = imageData.data[i * 4 + 2] / 255;
+        data[i + modelWidth * modelHeight] = imageData.data[i * 4 + 1] / 255;
+        data[i + modelWidth * modelHeight * 2] = imageData.data[i * 4 + 2] / 255;
     }
     
-    // Create the tensor using the new library's format
-    return new ort.Tensor('float32', data, [1, 3, 300, 300]);
+    return new ort.Tensor('float32', data, [1, 3, modelHeight, modelWidth]);
 }
 
 function postprocess(outputData, originalWidth, originalHeight) {
@@ -174,7 +165,6 @@ function postprocess(outputData, originalWidth, originalHeight) {
     return { boxes, scores, indices, personCount };
 }
 
-// --- 6. Drawing Function ---
 function drawDetections(source, boxes, scores, indices) {
     canvas.style.display = 'block';
     video.style.display = 'none';
@@ -200,5 +190,4 @@ function drawDetections(source, boxes, scores, indices) {
     }
 }
 
-// --- Run the main function when the page loads ---
 main();
